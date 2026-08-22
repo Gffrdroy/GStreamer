@@ -39,6 +39,28 @@
           <span>Search</span>
         </button>
       </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+        <select id="searchLang" class="bg-black border border-neutral-800 rounded-lg px-2.5 py-1.5 text-neutral-300">
+          <option value="tamil" selected>Tamil</option>
+          <option value="hindi">Hindi</option>
+          <option value="telugu">Telugu</option>
+          <option value="malayalam">Malayalam</option>
+          <option value="kannada">Kannada</option>
+        </select>
+        <select id="searchCategory" class="bg-black border border-neutral-800 rounded-lg px-2.5 py-1.5 text-neutral-300">
+          <option value="movie" selected>Movies</option>
+          <option value="music">Music</option>
+        </select>
+        <select id="searchSort" class="bg-black border border-neutral-800 rounded-lg px-2.5 py-1.5 text-neutral-300">
+          <option value="relevance" selected>Relevance</option>
+          <option value="recent">Recently Added</option>
+        </select>
+        <label class="flex items-center gap-2 bg-black border border-neutral-800 rounded-lg px-3 py-1.5 cursor-pointer">
+          <input type="checkbox" id="searchSubtitles" class="accent-green-500">
+          <span class="text-neutral-300 text-[11px]">Subtitles Only</span>
+        </label>
+      </div>
     </div>
 
     <!-- URL Input Area -->
@@ -69,6 +91,9 @@
     const placeholder = document.getElementById('placeholder');
     let hls = null;
 
+    // YOUR VERCEL PROXY ENDPOINT
+    const PROXY_BASE = "https://gstreamer-proxy.vercel.app/api/stream?url=";
+
     window.addEventListener('DOMContentLoaded', () => {
       const params = new URLSearchParams(window.location.search);
       const sharedUrl = params.get('url');
@@ -80,35 +105,36 @@
 
     function executeSearch() {
       const query = document.getElementById('searchQuery').value.trim();
-      if(query) window.open(`https://einthusan.tv/movie/results/?lang=tamil&query=${encodeURIComponent(query)}`, '_blank');
+      const lang = document.getElementById('searchLang').value;
+      const category = document.getElementById('searchCategory').value;
+      const sort = document.getElementById('searchSort').value;
+      const subtitles = document.getElementById('searchSubtitles').checked;
+
+      let searchUrl = `https://einthusan.tv/movie/results/?lang=${lang}`;
+      if (query) searchUrl += `&query=${encodeURIComponent(query)}`;
+      if (category) searchUrl += `&cat=${category}`;
+      if (sort) searchUrl += `&sort=${sort}`;
+      if (subtitles) searchUrl += `&cc=true`;
+
+      window.open(searchUrl, '_blank');
     }
 
     function loadMediaFromInput() {
       playRawStream(document.getElementById('streamUrl').value.trim());
     }
 
-    function playRawStream(url) {
-      if (!url) return;
+    function playRawStream(rawUrl) {
+      if (!rawUrl) return;
       placeholder.classList.add('hidden');
       video.classList.remove('hidden');
 
       if (hls) { hls.destroy(); hls = null; }
 
-      if (url.includes('.m3u8')) {
-        if (Hls.isSupported()) {
-          hls = new Hls();
-          hls.loadSource(url);
-          hls.attachMedia(video);
-          hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = url;
-          video.play();
-        }
-      } else {
-        // Direct stream loading
-        video.src = url;
-        video.play().catch(err => console.log("Playback error:", err));
-      }
+      // Route stream through your live serverless proxy
+      const proxiedUrl = PROXY_BASE + encodeURIComponent(rawUrl);
+
+      video.src = proxiedUrl;
+      video.play().catch(err => console.log("Playback error:", err));
     }
   </script>
 </body>
