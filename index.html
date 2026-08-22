@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="referrer" content="no-referrer">
   <title>GStreamer</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -40,28 +39,6 @@
           <span>Search</span>
         </button>
       </div>
-
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-        <select id="searchLang" class="bg-black border border-neutral-800 rounded-lg px-2.5 py-1.5 text-neutral-300">
-          <option value="tamil" selected>Tamil</option>
-          <option value="hindi">Hindi</option>
-          <option value="telugu">Telugu</option>
-          <option value="malayalam">Malayalam</option>
-          <option value="kannada">Kannada</option>
-        </select>
-        <select id="searchCategory" class="bg-black border border-neutral-800 rounded-lg px-2.5 py-1.5 text-neutral-300">
-          <option value="movie" selected>Movies</option>
-          <option value="music">Music</option>
-        </select>
-        <select id="searchSort" class="bg-black border border-neutral-800 rounded-lg px-2.5 py-1.5 text-neutral-300">
-          <option value="relevance" selected>Relevance</option>
-          <option value="recent">Recently Added</option>
-        </select>
-        <label class="flex items-center gap-2 bg-black border border-neutral-800 rounded-lg px-3 py-1.5 cursor-pointer">
-          <input type="checkbox" id="searchSubtitles" class="accent-green-500">
-          <span class="text-neutral-300 text-[11px]">Subtitles Only</span>
-        </label>
-      </div>
     </div>
 
     <!-- URL Input Area -->
@@ -76,14 +53,12 @@
 
     <!-- Video Stage -->
     <div id="dropZone" class="video-container relative w-full aspect-video bg-neutral-950 rounded-2xl border border-neutral-800 flex items-center justify-center overflow-hidden">
-
       <div id="placeholder" class="text-center p-8 space-y-3">
         <div id="statusIcon" class="w-16 h-16 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center mx-auto text-green-400">
           <i class="fa-solid fa-film text-2xl"></i>
         </div>
-        <p id="statusText" class="text-sm font-semibold text-neutral-200">Drop Stream Link or Use GStreamer Bookmarklet</p>
+        <p id="statusText" class="text-sm font-semibold text-neutral-200">Drop Stream Link or Use Bookmarklet</p>
       </div>
-
       <!-- Native Video Player -->
       <video id="videoElement" class="w-full h-full hidden bg-black object-contain" controls autoplay></video>
     </div>
@@ -92,10 +67,7 @@
   <script>
     const video = document.getElementById('videoElement');
     const placeholder = document.getElementById('placeholder');
-    const statusText = document.getElementById('statusText');
-    const dropZone = document.getElementById('dropZone');
     let hls = null;
-    let currentBlobUrl = null;
 
     window.addEventListener('DOMContentLoaded', () => {
       const params = new URLSearchParams(window.location.search);
@@ -106,67 +78,23 @@
       }
     });
 
-    // Drag & Drop
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
-      dropZone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); }, false);
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-      let rawUrl = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text/uri-list');
-      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        loadLocalFile(e.dataTransfer.files[0]);
-        return;
-      }
-      if (rawUrl) {
-        document.getElementById('streamUrl').value = rawUrl;
-        playRawStream(rawUrl);
-      }
-    });
-
     function executeSearch() {
       const query = document.getElementById('searchQuery').value.trim();
-      const lang = document.getElementById('searchLang').value;
-      const category = document.getElementById('searchCategory').value;
-      const sort = document.getElementById('searchSort').value;
-      const subtitles = document.getElementById('searchSubtitles').checked;
-
-      let searchUrl = `https://einthusan.tv/movie/results/?lang=${lang}`;
-      if (query) searchUrl += `&query=${encodeURIComponent(query)}`;
-      if (category) searchUrl += `&cat=${category}`;
-      if (sort) searchUrl += `&sort=${sort}`;
-      if (subtitles) searchUrl += `&cc=true`;
-
-      window.open(searchUrl, '_blank');
+      if(query) window.open(`https://einthusan.tv/movie/results/?lang=tamil&query=${encodeURIComponent(query)}`, '_blank');
     }
 
     function loadMediaFromInput() {
-      const raw = document.getElementById('streamUrl').value.trim();
-      playRawStream(raw);
+      playRawStream(document.getElementById('streamUrl').value.trim());
     }
 
-    function loadLocalFile(file) {
+    function playRawStream(url) {
+      if (!url) return;
       placeholder.classList.add('hidden');
       video.classList.remove('hidden');
-      if (hls) { hls.destroy(); hls = null; }
-      if (currentBlobUrl) { URL.revokeObjectURL(currentBlobUrl); }
-
-      video.src = URL.createObjectURL(file);
-      video.play().catch(err => console.log("Playback error:", err));
-    }
-
-    async function playRawStream(url) {
-      if (!url) return;
-      
-      placeholder.classList.remove('hidden');
-      video.classList.add('hidden');
-      statusText.innerText = "Bypassing CDN Hotlink rules...";
 
       if (hls) { hls.destroy(); hls = null; }
-      if (currentBlobUrl) { URL.revokeObjectURL(currentBlobUrl); }
 
       if (url.includes('.m3u8')) {
-        placeholder.classList.add('hidden');
-        video.classList.remove('hidden');
         if (Hls.isSupported()) {
           hls = new Hls();
           hls.loadSource(url);
@@ -176,29 +104,10 @@
           video.src = url;
           video.play();
         }
-        return;
-      }
-
-      // Fetch stream bytes directly and convert to a local Blob
-      try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
-        
-        const videoBlob = await response.blob();
-        currentBlobUrl = URL.createObjectURL(videoBlob);
-
-        placeholder.classList.add('hidden');
-        video.classList.remove('hidden');
-
-        video.src = currentBlobUrl;
-        video.play().catch(err => console.log("Play interrupted:", err));
-      } catch (err) {
-        console.error("Direct fetch failed, attempting fallback link setup...", err);
-        // Fallback directly to raw URL if Blob fetching encounters CORS
-        placeholder.classList.add('hidden');
-        video.classList.remove('hidden');
+      } else {
+        // Direct stream loading
         video.src = url;
-        video.play().catch(e => console.log("Playback failed:", e));
+        video.play().catch(err => console.log("Playback error:", err));
       }
     }
   </script>
