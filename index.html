@@ -3,14 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gifford's Streamer & Launcher</title>
+  <title>GStreamer</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     body { background-color: #0d0d0d; color: #e5e5e5; user-select: none; }
     video::-webkit-media-controls { display: none !important; }
-    .video-container:hover .video-controls-overlay { opacity: 1; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col font-sans bg-black text-neutral-200">
@@ -22,7 +21,7 @@
         <i class="fa-solid fa-play text-sm"></i>
       </div>
       <div>
-        <h1 class="text-base font-extrabold text-white">Gifford's Streamer & Launcher</h1>
+        <h1 class="text-base font-extrabold text-white">GStreamer</h1>
         <p class="text-[10px] text-neutral-400">Standalone Media Player & Search Portal</p>
       </div>
     </div>
@@ -64,17 +63,14 @@
       </div>
     </div>
 
-    <!-- URL Input Area & Mode Toggle -->
+    <!-- URL Input Area -->
     <div class="flex flex-col sm:flex-row gap-2">
-      <input type="text" id="streamUrl" placeholder="Paste Einthusan page URL or direct CDN video link..." 
+      <input type="text" id="streamUrl" placeholder="Paste Einthusan page URL or direct stream link..." 
         class="w-full px-4 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-xs font-mono text-neutral-100 focus:outline-none focus:border-green-500">
       
       <div class="flex gap-2">
-        <button onclick="loadMediaFromInput(false)" class="px-5 py-3 bg-green-500 hover:bg-green-400 text-black font-bold text-xs rounded-xl whitespace-nowrap">
+        <button onclick="loadMediaFromInput()" class="px-5 py-3 bg-green-500 hover:bg-green-400 text-black font-bold text-xs rounded-xl whitespace-nowrap">
           Play Stream
-        </button>
-        <button onclick="loadMediaFromInput(true)" class="px-5 py-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border border-neutral-700 font-bold text-xs rounded-xl whitespace-nowrap" title="Use if direct stream gets blocked">
-          Iframe Mode
         </button>
       </div>
     </div>
@@ -89,11 +85,11 @@
         <p class="text-sm font-semibold text-neutral-200">Drag & Drop Stream Link or Video File Here</p>
       </div>
 
-      <!-- Native Video Element -->
+      <!-- Native Video Element (for raw MP4 / M3U8 files) -->
       <video id="videoElement" class="w-full h-full hidden bg-black object-contain" controls></video>
 
-      <!-- Embedded Web Frame Fallback -->
-      <iframe id="iframeElement" class="w-full h-full hidden border-0 bg-black" allowfullscreen></iframe>
+      <!-- Embedded Web Frame (for website pages) -->
+      <iframe id="iframeElement" class="w-full h-full hidden border-0 bg-black" allowfullscreen allow="autoplay; encrypted-media"></iframe>
     </div>
   </main>
 
@@ -106,7 +102,7 @@
 
     const CORS_PROXY = "https://corsproxy.io/?";
 
-    // Drag and Drop Handlers
+    // Drag and Drop
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
       dropZone.addEventListener(eventName, preventDefaults, false);
       document.body.addEventListener(eventName, preventDefaults, false);
@@ -122,14 +118,13 @@
       let rawUrl = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text/uri-list');
       
       if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        const file = e.dataTransfer.files[0];
-        loadLocalFile(file);
+        loadLocalFile(e.dataTransfer.files[0]);
         return;
       }
 
       if (rawUrl) {
         document.getElementById('streamUrl').value = rawUrl;
-        loadMediaUrl(rawUrl, false);
+        loadMediaUrl(rawUrl);
       }
     });
 
@@ -149,9 +144,9 @@
       window.open(searchUrl, '_blank');
     }
 
-    function loadMediaFromInput(forceIframe = false) {
+    function loadMediaFromInput() {
       const raw = document.getElementById('streamUrl').value.trim();
-      loadMediaUrl(raw, forceIframe);
+      loadMediaUrl(raw);
     }
 
     function loadLocalFile(file) {
@@ -160,48 +155,26 @@
       video.classList.remove('hidden');
       if (hls) { hls.destroy(); hls = null; }
 
-      const localUrl = URL.createObjectURL(file);
-      video.src = localUrl;
+      video.src = URL.createObjectURL(file);
       video.play().catch(err => console.log("Local playback error:", err));
     }
 
-    function launchNoReferrerWindow(url) {
-      const win = window.open(url, "_blank");
-      if (!win) {
-        alert("Pop-up blocked. Please allow pop-ups for this page to launch Einthusan links.");
-      }
-    }
-
-    function loadMediaUrl(url, forceIframe = false) {
+    function loadMediaUrl(url) {
       if (!url) return;
-
-      if (url.includes('einthusan.tv/movie/watch/')) {
-        if (forceIframe) {
-          placeholder.classList.add('hidden');
-          video.classList.add('hidden');
-          iframe.classList.remove('hidden');
-          iframe.src = url;
-        } else {
-          launchNoReferrerWindow(url);
-        }
-        return;
-      }
-
-      if (url.includes('einthusan.io')) {
-        launchNoReferrerWindow(url);
-        return;
-      }
 
       placeholder.classList.add('hidden');
 
-      if (forceIframe) {
+      // Direct Web Page links (Einthusan watch links or general site links)
+      if (url.includes('einthusan.tv') || url.includes('einthusan.io') || (!url.includes('.mp4') && !url.includes('.m3u8'))) {
         video.classList.add('hidden');
         if (hls) { hls.destroy(); hls = null; }
+        
         iframe.classList.remove('hidden');
         iframe.src = url;
         return;
       }
 
+      // Direct video file stream links (.m3u8 or .mp4)
       iframe.classList.add('hidden');
       video.classList.remove('hidden');
 
@@ -219,22 +192,15 @@
 
           hls.loadSource(url);
           hls.attachMedia(video);
-          hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            video.play().catch(() => launchNoReferrerWindow(url));
-          });
-          hls.on(Hls.Events.ERROR, (event, data) => {
-            if (data.fatal) {
-              launchNoReferrerWindow(url);
-            }
-          });
+          hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
           video.src = url;
-          video.play().catch(() => launchNoReferrerWindow(url));
+          video.play();
         }
       } else {
         if (hls) { hls.destroy(); hls = null; }
         video.src = url;
-        video.play().catch(() => launchNoReferrerWindow(url));
+        video.play();
       }
     }
   </script>
