@@ -5,11 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GStreamer</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     body { background-color: #0d0d0d; color: #e5e5e5; user-select: none; }
-    video::-webkit-media-controls { display: flex !important; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col font-sans bg-black text-neutral-200">
@@ -39,33 +37,11 @@
           <span>Search</span>
         </button>
       </div>
-
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-        <select id="searchLang" class="bg-black border border-neutral-800 rounded-lg px-2.5 py-1.5 text-neutral-300">
-          <option value="tamil" selected>Tamil</option>
-          <option value="hindi">Hindi</option>
-          <option value="telugu">Telugu</option>
-          <option value="malayalam">Malayalam</option>
-          <option value="kannada">Kannada</option>
-        </select>
-        <select id="searchCategory" class="bg-black border border-neutral-800 rounded-lg px-2.5 py-1.5 text-neutral-300">
-          <option value="movie" selected>Movies</option>
-          <option value="music">Music</option>
-        </select>
-        <select id="searchSort" class="bg-black border border-neutral-800 rounded-lg px-2.5 py-1.5 text-neutral-300">
-          <option value="relevance" selected>Relevance</option>
-          <option value="recent">Recently Added</option>
-        </select>
-        <label class="flex items-center gap-2 bg-black border border-neutral-800 rounded-lg px-3 py-1.5 cursor-pointer">
-          <input type="checkbox" id="searchSubtitles" class="accent-green-500">
-          <span class="text-neutral-300 text-[11px]">Subtitles Only</span>
-        </label>
-      </div>
     </div>
 
     <!-- URL Input Area -->
     <div class="flex flex-col sm:flex-row gap-2">
-      <input type="text" id="streamUrl" placeholder="Paste direct CDN MP4 link or use bookmarklet..." 
+      <input type="text" id="streamUrl" placeholder="Paste Einthusan movie page URL or direct video link..." 
         class="w-full px-4 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-xs font-mono text-neutral-100 focus:outline-none focus:border-green-500">
       
       <button onclick="loadMediaFromInput()" class="px-5 py-3 bg-green-500 hover:bg-green-400 text-black font-bold text-xs rounded-xl whitespace-nowrap">
@@ -79,60 +55,48 @@
         <div id="statusIcon" class="w-16 h-16 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center mx-auto text-green-400">
           <i class="fa-solid fa-film text-2xl"></i>
         </div>
-        <p id="statusText" class="text-sm font-semibold text-neutral-200">Paste Media Link Above or Use Bookmarklet</p>
+        <p id="statusText" class="text-sm font-semibold text-neutral-200">Paste Link Above to Start Streaming</p>
       </div>
 
+      <!-- Native Video Player for direct links -->
       <video id="videoElement" class="w-full h-full hidden bg-black object-contain" controls autoplay></video>
+      
+      <!-- Embedded Player Frame for movie pages -->
+      <iframe id="iframeElement" class="w-full h-full hidden border-0" allowfullscreen allow="autoplay"></iframe>
     </div>
   </main>
 
   <script>
     const video = document.getElementById('videoElement');
+    const iframe = document.getElementById('iframeElement');
     const placeholder = document.getElementById('placeholder');
-    let hls = null;
-
-    const PROXY_BASE = "https://gstreamer-proxy.vercel.app/api/stream?url=";
-
-    window.addEventListener('DOMContentLoaded', () => {
-      const params = new URLSearchParams(window.location.search);
-      const sharedUrl = params.get('url');
-      if (sharedUrl) {
-        document.getElementById('streamUrl').value = sharedUrl;
-        playRawStream(sharedUrl);
-      }
-    });
 
     function executeSearch() {
       const query = document.getElementById('searchQuery').value.trim();
-      const lang = document.getElementById('searchLang').value;
-      const category = document.getElementById('searchCategory').value;
-      const sort = document.getElementById('searchSort').value;
-      const subtitles = document.getElementById('searchSubtitles').checked;
-
-      let searchUrl = `https://einthusan.tv/movie/results/?lang=${lang}`;
-      if (query) searchUrl += `&query=${encodeURIComponent(query)}`;
-      if (category) searchUrl += `&cat=${category}`;
-      if (sort) searchUrl += `&sort=${sort}`;
-      if (subtitles) searchUrl += `&cc=true`;
-
-      window.open(searchUrl, '_blank');
+      if (query) window.open(`https://einthusan.tv/movie/results/?lang=tamil&query=${encodeURIComponent(query)}`, '_blank');
     }
 
     function loadMediaFromInput() {
-      playRawStream(document.getElementById('streamUrl').value.trim());
-    }
-
-    function playRawStream(rawUrl) {
+      const rawUrl = document.getElementById('streamUrl').value.trim();
       if (!rawUrl) return;
+
       placeholder.classList.add('hidden');
-      video.classList.remove('hidden');
 
-      if (hls) { hls.destroy(); hls = null; }
+      // Check if link is an Einthusan webpage vs direct media file
+      if (rawUrl.includes('einthusan.tv') && !rawUrl.match(/\.(mp4|m3u8)$/i)) {
+        video.classList.add('hidden');
+        video.pause();
+        
+        iframe.src = rawUrl;
+        iframe.classList.remove('hidden');
+      } else {
+        iframe.classList.add('hidden');
+        iframe.src = '';
 
-      // Route all direct links through the chunked Vercel proxy
-      const proxiedUrl = PROXY_BASE + encodeURIComponent(rawUrl);
-      video.src = proxiedUrl;
-      video.play().catch(err => console.log("Playback error:", err));
+        video.src = rawUrl;
+        video.classList.remove('hidden');
+        video.play().catch(err => console.log("Playback error:", err));
+      }
     }
   </script>
 </body>
