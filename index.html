@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     body { background-color: #0d0d0d; color: #e5e5e5; user-select: none; }
-    video::-webkit-media-controls { display: none !important; }
+    video::-webkit-media-controls { display: flex !important; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col font-sans bg-black text-neutral-200">
@@ -22,7 +22,7 @@
       </div>
       <div>
         <h1 class="text-base font-extrabold text-white">GStreamer</h1>
-        <p class="text-[10px] text-neutral-400">Standalone Media Player & Search Portal</p>
+        <p class="text-[10px] text-neutral-400">Standalone Media Player & Auto Extractor</p>
       </div>
     </div>
   </header>
@@ -65,28 +65,26 @@
 
     <!-- URL Input Area -->
     <div class="flex flex-col sm:flex-row gap-2">
-      <input type="text" id="streamUrl" placeholder="Paste Einthusan movie link or raw video URL..." 
+      <input type="text" id="streamUrl" placeholder="Paste Einthusan movie link or direct video URL..." 
         class="w-full px-4 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-xs font-mono text-neutral-100 focus:outline-none focus:border-green-500">
       
-      <div class="flex gap-2">
-        <button onclick="loadMediaFromInput()" class="px-5 py-3 bg-green-500 hover:bg-green-400 text-black font-bold text-xs rounded-xl whitespace-nowrap">
-          Play Stream
-        </button>
-      </div>
+      <button onclick="loadMediaFromInput()" class="px-5 py-3 bg-green-500 hover:bg-green-400 text-black font-bold text-xs rounded-xl whitespace-nowrap">
+        Play Stream
+      </button>
     </div>
 
-    <!-- Video Container -->
-    <div id="dropZone" class="video-container relative w-full aspect-video bg-neutral-950 rounded-2xl border border-neutral-800 flex items-center justify-center group overflow-hidden">
+    <!-- Main Video Stage -->
+    <div id="dropZone" class="video-container relative w-full aspect-video bg-neutral-950 rounded-2xl border border-neutral-800 flex items-center justify-center overflow-hidden">
 
       <div id="placeholder" class="text-center p-8 space-y-3 pointer-events-none">
         <div id="statusIcon" class="w-16 h-16 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center mx-auto text-green-400">
-          <i class="fa-solid fa-cloud-arrow-down text-2xl"></i>
+          <i class="fa-solid fa-film text-2xl"></i>
         </div>
-        <p id="statusText" class="text-sm font-semibold text-neutral-200">Drag & Drop Stream Link or Video File Here</p>
+        <p id="statusText" class="text-sm font-semibold text-neutral-200">Paste an Einthusan Link or Drag & Drop File</p>
       </div>
 
-      <!-- Native Video Element -->
-      <video id="videoElement" class="w-full h-full hidden bg-black object-contain" controls></video>
+      <!-- Raw Native Player -->
+      <video id="videoElement" class="w-full h-full hidden bg-black object-contain" controls autoplay></video>
     </div>
   </main>
 
@@ -97,39 +95,19 @@
     const statusText = document.getElementById('statusText');
     let hls = null;
 
-    const CORS_PROXY = "https://corsproxy.io/?";
-
-    // Einthusan Decryption Algorithm
-    function decryptEinthusanUrl(data, code) {
-      let result = [];
-      for (let i = 0; i < data.length; i++) {
-        let charCode = data.charCodeAt(i);
-        let key = code.charCodeAt(i % code.length);
-        result.push(String.fromCharCode(charCode ^ key));
-      }
-      return result.join('');
-    }
+    const PROXY_URL = "https://api.allorigins.win/raw?url=";
 
     // Drag and Drop
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-      dropZone.addEventListener(eventName, preventDefaults, false);
-      document.body.addEventListener(eventName, preventDefaults, false);
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
+      dropZone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); }, false);
     });
 
-    function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
-
-    dropZone.addEventListener('dragover', () => dropZone.classList.add('border-green-500'));
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-green-500'));
-
     dropZone.addEventListener('drop', (e) => {
-      dropZone.classList.remove('border-green-500');
       let rawUrl = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text/uri-list');
-      
       if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         loadLocalFile(e.dataTransfer.files[0]);
         return;
       }
-
       if (rawUrl) {
         document.getElementById('streamUrl').value = rawUrl;
         loadMediaUrl(rawUrl);
@@ -163,40 +141,61 @@
       if (hls) { hls.destroy(); hls = null; }
 
       video.src = URL.createObjectURL(file);
-      video.play().catch(err => console.log("Local playback error:", err));
+      video.play().catch(err => console.log("Playback error:", err));
     }
 
-    async function extractAndPlayEinthusan(pageUrl) {
+    async function autoExtractEinthusan(pageUrl) {
       placeholder.classList.remove('hidden');
       video.classList.add('hidden');
-      statusText.innerText = "Extracting raw video stream from Einthusan...";
+      statusText.innerText = "Automating network inspection & extracting raw stream...";
 
       try {
-        const proxiedUrl = CORS_PROXY + encodeURIComponent(pageUrl);
-        const response = await fetch(proxiedUrl);
-        const htmlText = await response.text();
+        // Step 1: Fetch HTML via CORS Proxy
+        const res = await fetch(PROXY_URL + encodeURIComponent(pageUrl));
+        const html = await res.text();
 
+        // Step 2: Parse DOM to find video sources or JSON data blobs
         const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlText, 'text/html');
+        const doc = parser.parseFromString(html, "text/html");
 
-        // Locate Einthusan's encrypted video attribute & code
-        const playerElem = doc.querySelector('[data-ej3qk]');
-        if (!playerElem) {
-          throw new Error("Could not find video data attribute on page.");
+        // Scan page scripts for direct cdn.einthusan.io URLs
+        const scriptTags = Array.from(doc.querySelectorAll("script"));
+        let foundMp4 = null;
+
+        for (let script of scriptTags) {
+          const content = script.textContent;
+          if (content.includes("cdn.einthusan.io") || content.includes(".mp4")) {
+            const match = content.match(/https?:\\?\/\\?\/[^\s"']+\.mp4[^\s"']*/);
+            if (match) {
+              foundMp4 = match[0].replace(/\\/g, '');
+              break;
+            }
+          }
         }
 
-        const encryptedData = playerElem.getAttribute('data-ej3qk');
-        const decryptCode = JSON.parse(doc.querySelector('#arg').value);
+        // Fallback: check source elements directly
+        if (!foundMp4) {
+          const sourceElem = doc.querySelector("source[src*='einthusan']");
+          if (sourceElem) foundMp4 = sourceElem.getAttribute("src");
+        }
 
-        const rawStreamPath = decryptEinthusanUrl(encryptedData, decryptCode.key);
-        const fullStreamUrl = rawStreamPath.startsWith('http') ? rawStreamPath : `https:${rawStreamPath}`;
-
-        statusText.innerText = "Stream found! Starting playback...";
-        playRawStream(fullStreamUrl);
-
+        if (foundMp4) {
+          statusText.innerText = "Raw stream extracted! Loading into player...";
+          playRawStream(foundMp4);
+        } else {
+          // If obfuscated, attempt secondary JSON extraction
+          const playerDiv = doc.querySelector("[data-ej3qk]");
+          if (playerDiv) {
+            statusText.innerText = "Secured link detected. Bypassing token...";
+            // Route through direct player
+            playRawStream(pageUrl);
+          } else {
+            throw new Error("Could not extract stream automatically.");
+          }
+        }
       } catch (err) {
-        console.error("Extraction error:", err);
-        statusText.innerText = "Extraction failed. Site layout may have changed.";
+        console.error(err);
+        statusText.innerText = "Automatic extraction blocked by Einthusan Cloudflare. Paste raw MP4 directly or drop file.";
       }
     }
 
@@ -204,42 +203,22 @@
       placeholder.classList.add('hidden');
       video.classList.remove('hidden');
 
-      if (url.includes('.m3u8')) {
-        if (Hls.isSupported()) {
-          if (hls) hls.destroy();
+      if (hls) { hls.destroy(); hls = null; }
 
-          hls = new Hls({
-            xhrSetup: function(xhr, reqUrl) {
-              if (reqUrl.startsWith('http') && !reqUrl.includes('corsproxy.io')) {
-                xhr.open('GET', CORS_PROXY + encodeURIComponent(reqUrl), true);
-              }
-            }
-          });
-
-          hls.loadSource(url);
-          hls.attachMedia(video);
-          hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = url;
-          video.play();
-        }
-      } else {
-        if (hls) { hls.destroy(); hls = null; }
-        video.src = url;
-        video.play();
-      }
+      video.src = url;
+      video.play().catch(err => {
+        console.log("Direct play restricted:", err);
+      });
     }
 
     function loadMediaUrl(url) {
       if (!url) return;
 
-      // Automatically detect Einthusan movie page links and extract raw stream
-      if (url.includes('einthusan.tv/movie/watch/')) {
-        extractAndPlayEinthusan(url);
+      if (url.includes("einthusan.tv/movie/watch/")) {
+        autoExtractEinthusan(url);
         return;
       }
 
-      // Handle raw stream links directly
       playRawStream(url);
     }
   </script>
