@@ -66,7 +66,7 @@
 
     <!-- URL Input Area -->
     <div class="flex flex-col sm:flex-row gap-2">
-      <input type="text" id="streamUrl" placeholder="Paste direct cdn MP4 link or use bookmarklet..." 
+      <input type="text" id="streamUrl" placeholder="Paste direct CDN MP4 link or use bookmarklet..." 
         class="w-full px-4 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-xs font-mono text-neutral-100 focus:outline-none focus:border-green-500">
       
       <button onclick="loadMediaFromInput()" class="px-5 py-3 bg-green-500 hover:bg-green-400 text-black font-bold text-xs rounded-xl whitespace-nowrap">
@@ -77,25 +77,26 @@
     <!-- Video Stage -->
     <div id="dropZone" class="video-container relative w-full aspect-video bg-neutral-950 rounded-2xl border border-neutral-800 flex items-center justify-center overflow-hidden">
 
-      <div id="placeholder" class="text-center p-8 space-y-3 pointer-events-none">
-        <div class="w-16 h-16 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center mx-auto text-green-400">
+      <div id="placeholder" class="text-center p-8 space-y-3">
+        <div id="statusIcon" class="w-16 h-16 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center mx-auto text-green-400">
           <i class="fa-solid fa-film text-2xl"></i>
         </div>
-        <p class="text-sm font-semibold text-neutral-200">Drop Stream Link or Use GStreamer Bookmarklet</p>
+        <p id="statusText" class="text-sm font-semibold text-neutral-200">Drop Stream Link or Use GStreamer Bookmarklet</p>
       </div>
 
-      <!-- Native Video Player with Restricted Referrer Policy -->
-      <video id="videoElement" class="w-full h-full hidden bg-black object-contain" controls autoplay referrerpolicy="no-referrer" crossorigin="anonymous"></video>
+      <!-- Native Video Player -->
+      <video id="videoElement" class="w-full h-full hidden bg-black object-contain" controls autoplay></video>
     </div>
   </main>
 
   <script>
     const video = document.getElementById('videoElement');
     const placeholder = document.getElementById('placeholder');
+    const statusText = document.getElementById('statusText');
     const dropZone = document.getElementById('dropZone');
     let hls = null;
+    let currentBlobUrl = null;
 
-    // Auto-load if parameters are passed from bookmarklet
     window.addEventListener('DOMContentLoaded', () => {
       const params = new URLSearchParams(window.location.search);
       const sharedUrl = params.get('url');
@@ -147,19 +148,25 @@
       placeholder.classList.add('hidden');
       video.classList.remove('hidden');
       if (hls) { hls.destroy(); hls = null; }
+      if (currentBlobUrl) { URL.revokeObjectURL(currentBlobUrl); }
 
       video.src = URL.createObjectURL(file);
       video.play().catch(err => console.log("Playback error:", err));
     }
 
-    function playRawStream(url) {
+    async function playRawStream(url) {
       if (!url) return;
-      placeholder.classList.add('hidden');
-      video.classList.remove('hidden');
+      
+      placeholder.classList.remove('hidden');
+      video.classList.add('hidden');
+      statusText.innerText = "Bypassing CDN Hotlink rules...";
 
       if (hls) { hls.destroy(); hls = null; }
+      if (currentBlobUrl) { URL.revokeObjectURL(currentBlobUrl); }
 
       if (url.includes('.m3u8')) {
+        placeholder.classList.add('hidden');
+        video.classList.remove('hidden');
         if (Hls.isSupported()) {
           hls = new Hls();
           hls.loadSource(url);
@@ -169,9 +176,29 @@
           video.src = url;
           video.play();
         }
-      } else {
-        video.src = url;
+        return;
+      }
+
+      // Fetch stream bytes directly and convert to a local Blob
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+        
+        const videoBlob = await response.blob();
+        currentBlobUrl = URL.createObjectURL(videoBlob);
+
+        placeholder.classList.add('hidden');
+        video.classList.remove('hidden');
+
+        video.src = currentBlobUrl;
         video.play().catch(err => console.log("Play interrupted:", err));
+      } catch (err) {
+        console.error("Direct fetch failed, attempting fallback link setup...", err);
+        // Fallback directly to raw URL if Blob fetching encounters CORS
+        placeholder.classList.add('hidden');
+        video.classList.remove('hidden');
+        video.src = url;
+        video.play().catch(e => console.log("Playback failed:", e));
       }
     }
   </script>
