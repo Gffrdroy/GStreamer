@@ -65,7 +65,7 @@
 
     <!-- URL Input Area -->
     <div class="flex flex-col sm:flex-row gap-2">
-      <input type="text" id="streamUrl" placeholder="Paste Einthusan page URL or direct stream link..." 
+      <input type="text" id="streamUrl" placeholder="Paste Einthusan movie link or raw video URL..." 
         class="w-full px-4 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-xs font-mono text-neutral-100 focus:outline-none focus:border-green-500">
       
       <div class="flex gap-2">
@@ -75,32 +75,40 @@
       </div>
     </div>
 
-    <!-- Video & Frame Container -->
+    <!-- Video Container -->
     <div id="dropZone" class="video-container relative w-full aspect-video bg-neutral-950 rounded-2xl border border-neutral-800 flex items-center justify-center group overflow-hidden">
 
       <div id="placeholder" class="text-center p-8 space-y-3 pointer-events-none">
-        <div class="w-16 h-16 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center mx-auto text-green-400">
+        <div id="statusIcon" class="w-16 h-16 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center mx-auto text-green-400">
           <i class="fa-solid fa-cloud-arrow-down text-2xl"></i>
         </div>
-        <p class="text-sm font-semibold text-neutral-200">Drag & Drop Stream Link or Video File Here</p>
+        <p id="statusText" class="text-sm font-semibold text-neutral-200">Drag & Drop Stream Link or Video File Here</p>
       </div>
 
       <!-- Native Video Element -->
       <video id="videoElement" class="w-full h-full hidden bg-black object-contain" controls></video>
-
-      <!-- Embedded Frame Fallback -->
-      <iframe id="iframeElement" class="w-full h-full hidden border-0 bg-black" allowfullscreen></iframe>
     </div>
   </main>
 
   <script>
     const video = document.getElementById('videoElement');
-    const iframe = document.getElementById('iframeElement');
     const placeholder = document.getElementById('placeholder');
     const dropZone = document.getElementById('dropZone');
+    const statusText = document.getElementById('statusText');
     let hls = null;
 
     const CORS_PROXY = "https://corsproxy.io/?";
+
+    // Einthusan Decryption Algorithm
+    function decryptEinthusanUrl(data, code) {
+      let result = [];
+      for (let i = 0; i < data.length; i++) {
+        let charCode = data.charCodeAt(i);
+        let key = code.charCodeAt(i % code.length);
+        result.push(String.fromCharCode(charCode ^ key));
+      }
+      return result.join('');
+    }
 
     // Drag and Drop
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -151,7 +159,6 @@
 
     function loadLocalFile(file) {
       placeholder.classList.add('hidden');
-      iframe.classList.add('hidden');
       video.classList.remove('hidden');
       if (hls) { hls.destroy(); hls = null; }
 
@@ -159,24 +166,42 @@
       video.play().catch(err => console.log("Local playback error:", err));
     }
 
-    function openStageWindow(url) {
-      const win = window.open(url, "GStreamerStage", "width=1280,height=720,menubar=no,toolbar=no,location=no,status=no");
-      if (!win) {
-        alert("Pop-up blocked. Please allow pop-ups for GStreamer so stage windows can open.");
+    async function extractAndPlayEinthusan(pageUrl) {
+      placeholder.classList.remove('hidden');
+      video.classList.add('hidden');
+      statusText.innerText = "Extracting raw video stream from Einthusan...";
+
+      try {
+        const proxiedUrl = CORS_PROXY + encodeURIComponent(pageUrl);
+        const response = await fetch(proxiedUrl);
+        const htmlText = await response.text();
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlText, 'text/html');
+
+        // Locate Einthusan's encrypted video attribute & code
+        const playerElem = doc.querySelector('[data-ej3qk]');
+        if (!playerElem) {
+          throw new Error("Could not find video data attribute on page.");
+        }
+
+        const encryptedData = playerElem.getAttribute('data-ej3qk');
+        const decryptCode = JSON.parse(doc.querySelector('#arg').value);
+
+        const rawStreamPath = decryptEinthusanUrl(encryptedData, decryptCode.key);
+        const fullStreamUrl = rawStreamPath.startsWith('http') ? rawStreamPath : `https:${rawStreamPath}`;
+
+        statusText.innerText = "Stream found! Starting playback...";
+        playRawStream(fullStreamUrl);
+
+      } catch (err) {
+        console.error("Extraction error:", err);
+        statusText.innerText = "Extraction failed. Site layout may have changed.";
       }
     }
 
-    function loadMediaUrl(url) {
-      if (!url) return;
-
-      // Handle web page links that send SAMEORIGIN headers
-      if (url.includes('einthusan.tv') || url.includes('einthusan.io') && !url.includes('.mp4') && !url.includes('.m3u8')) {
-        openStageWindow(url);
-        return;
-      }
-
+    function playRawStream(url) {
       placeholder.classList.add('hidden');
-      iframe.classList.add('hidden');
       video.classList.remove('hidden');
 
       if (url.includes('.m3u8')) {
@@ -203,6 +228,19 @@
         video.src = url;
         video.play();
       }
+    }
+
+    function loadMediaUrl(url) {
+      if (!url) return;
+
+      // Automatically detect Einthusan movie page links and extract raw stream
+      if (url.includes('einthusan.tv/movie/watch/')) {
+        extractAndPlayEinthusan(url);
+        return;
+      }
+
+      // Handle raw stream links directly
+      playRawStream(url);
     }
   </script>
 </body>
