@@ -85,11 +85,11 @@
         <p class="text-sm font-semibold text-neutral-200">Drag & Drop Stream Link or Video File Here</p>
       </div>
 
-      <!-- Native Video Element (for raw MP4 / M3U8 files) -->
+      <!-- Native Video Element -->
       <video id="videoElement" class="w-full h-full hidden bg-black object-contain" controls></video>
 
-      <!-- Embedded Web Frame (for website pages) -->
-      <iframe id="iframeElement" class="w-full h-full hidden border-0 bg-black" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+      <!-- Embedded Frame Fallback -->
+      <iframe id="iframeElement" class="w-full h-full hidden border-0 bg-black" allowfullscreen></iframe>
     </div>
   </main>
 
@@ -159,22 +159,23 @@
       video.play().catch(err => console.log("Local playback error:", err));
     }
 
+    function openStageWindow(url) {
+      const win = window.open(url, "GStreamerStage", "width=1280,height=720,menubar=no,toolbar=no,location=no,status=no");
+      if (!win) {
+        alert("Pop-up blocked. Please allow pop-ups for GStreamer so stage windows can open.");
+      }
+    }
+
     function loadMediaUrl(url) {
       if (!url) return;
 
-      placeholder.classList.add('hidden');
-
-      // Direct Web Page links (Einthusan watch links or general site links)
-      if (url.includes('einthusan.tv') || url.includes('einthusan.io') || (!url.includes('.mp4') && !url.includes('.m3u8'))) {
-        video.classList.add('hidden');
-        if (hls) { hls.destroy(); hls = null; }
-        
-        iframe.classList.remove('hidden');
-        iframe.src = url;
+      // Handle web page links that send SAMEORIGIN headers
+      if (url.includes('einthusan.tv') || url.includes('einthusan.io') && !url.includes('.mp4') && !url.includes('.m3u8')) {
+        openStageWindow(url);
         return;
       }
 
-      // Direct video file stream links (.m3u8 or .mp4)
+      placeholder.classList.add('hidden');
       iframe.classList.add('hidden');
       video.classList.remove('hidden');
 
