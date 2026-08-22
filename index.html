@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="no-referrer">
   <title>GStreamer</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -83,8 +84,8 @@
         <p class="text-sm font-semibold text-neutral-200">Drop Stream Link or Use GStreamer Bookmarklet</p>
       </div>
 
-      <!-- Native Video Player -->
-      <video id="videoElement" class="w-full h-full hidden bg-black object-contain" controls autoplay></video>
+      <!-- Native Video Player with Restricted Referrer Policy -->
+      <video id="videoElement" class="w-full h-full hidden bg-black object-contain" controls autoplay referrerpolicy="no-referrer" crossorigin="anonymous"></video>
     </div>
   </main>
 
