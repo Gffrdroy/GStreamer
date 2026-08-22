@@ -63,9 +63,9 @@
       </div>
     </div>
 
-    <!-- URL Input Area -->
+    <!-- Direct URL Input Area -->
     <div class="flex flex-col sm:flex-row gap-2">
-      <input type="text" id="streamUrl" placeholder="Paste direct CDN MP4 link or use bookmarklet..." 
+      <input type="text" id="streamUrl" placeholder="Paste direct MP4 / HLS link here..." 
         class="w-full px-4 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-xs font-mono text-neutral-100 focus:outline-none focus:border-green-500">
       
       <button onclick="loadMediaFromInput()" class="px-5 py-3 bg-green-500 hover:bg-green-400 text-black font-bold text-xs rounded-xl whitespace-nowrap">
@@ -73,15 +73,16 @@
       </button>
     </div>
 
-    <!-- Video Stage -->
+    <!-- Video Player Container -->
     <div id="dropZone" class="video-container relative w-full aspect-video bg-neutral-950 rounded-2xl border border-neutral-800 flex items-center justify-center overflow-hidden">
       <div id="placeholder" class="text-center p-8 space-y-3">
         <div id="statusIcon" class="w-16 h-16 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center mx-auto text-green-400">
           <i class="fa-solid fa-film text-2xl"></i>
         </div>
-        <p id="statusText" class="text-sm font-semibold text-neutral-200">Drop Stream Link or Use Bookmarklet</p>
+        <p id="statusText" class="text-sm font-semibold text-neutral-200">Paste Media Link Above or Use Bookmarklet</p>
       </div>
-      <!-- Native Video Player -->
+
+      <!-- Native Video Element -->
       <video id="videoElement" class="w-full h-full hidden bg-black object-contain" controls autoplay></video>
     </div>
   </main>
@@ -90,9 +91,6 @@
     const video = document.getElementById('videoElement');
     const placeholder = document.getElementById('placeholder');
     let hls = null;
-
-    // YOUR VERCEL PROXY ENDPOINT
-    const PROXY_BASE = "https://gstreamer-proxy.vercel.app/api/stream?url=";
 
     window.addEventListener('DOMContentLoaded', () => {
       const params = new URLSearchParams(window.location.search);
@@ -130,11 +128,20 @@
 
       if (hls) { hls.destroy(); hls = null; }
 
-      // Route stream through your live serverless proxy
-      const proxiedUrl = PROXY_BASE + encodeURIComponent(rawUrl);
-
-      video.src = proxiedUrl;
-      video.play().catch(err => console.log("Playback error:", err));
+      if (rawUrl.includes('.m3u8')) {
+        if (Hls.isSupported()) {
+          hls = new Hls();
+          hls.loadSource(rawUrl);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = rawUrl;
+          video.play();
+        }
+      } else {
+        video.src = rawUrl;
+        video.play().catch(err => console.log("Playback error:", err));
+      }
     }
   </script>
 </body>
