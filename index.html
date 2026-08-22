@@ -22,7 +22,7 @@
       </div>
       <div>
         <h1 class="text-base font-extrabold text-white">GStreamer</h1>
-        <p class="text-[10px] text-neutral-400">Standalone Media Player & Auto Extractor</p>
+        <p class="text-[10px] text-neutral-400">Standalone Media Player</p>
       </div>
     </div>
   </header>
@@ -65,7 +65,7 @@
 
     <!-- URL Input Area -->
     <div class="flex flex-col sm:flex-row gap-2">
-      <input type="text" id="streamUrl" placeholder="Paste Einthusan movie URL or direct video link..." 
+      <input type="text" id="streamUrl" placeholder="Paste direct cdn MP4 link or use bookmarklet..." 
         class="w-full px-4 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-xs font-mono text-neutral-100 focus:outline-none focus:border-green-500">
       
       <button onclick="loadMediaFromInput()" class="px-5 py-3 bg-green-500 hover:bg-green-400 text-black font-bold text-xs rounded-xl whitespace-nowrap">
@@ -77,10 +77,10 @@
     <div id="dropZone" class="video-container relative w-full aspect-video bg-neutral-950 rounded-2xl border border-neutral-800 flex items-center justify-center overflow-hidden">
 
       <div id="placeholder" class="text-center p-8 space-y-3 pointer-events-none">
-        <div id="statusIcon" class="w-16 h-16 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center mx-auto text-green-400">
+        <div class="w-16 h-16 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center mx-auto text-green-400">
           <i class="fa-solid fa-film text-2xl"></i>
         </div>
-        <p id="statusText" class="text-sm font-semibold text-neutral-200">Paste Einthusan Movie URL or Drag & Drop File</p>
+        <p class="text-sm font-semibold text-neutral-200">Drop Stream Link or Use GStreamer Bookmarklet</p>
       </div>
 
       <!-- Native Video Player -->
@@ -92,19 +92,17 @@
     const video = document.getElementById('videoElement');
     const placeholder = document.getElementById('placeholder');
     const dropZone = document.getElementById('dropZone');
-    const statusText = document.getElementById('statusText');
     let hls = null;
 
-    // Einthusan XOR Decryption Method
-    function decryptEinthusanUrl(data, code) {
-      let result = [];
-      for (let i = 0; i < data.length; i++) {
-        let charCode = data.charCodeAt(i);
-        let key = code.charCodeAt(i % code.length);
-        result.push(String.fromCharCode(charCode ^ key));
+    // Auto-load if parameters are passed from bookmarklet
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const sharedUrl = params.get('url');
+      if (sharedUrl) {
+        document.getElementById('streamUrl').value = sharedUrl;
+        playRawStream(sharedUrl);
       }
-      return result.join('');
-    }
+    });
 
     // Drag & Drop
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
@@ -119,7 +117,7 @@
       }
       if (rawUrl) {
         document.getElementById('streamUrl').value = rawUrl;
-        loadMediaUrl(rawUrl);
+        playRawStream(rawUrl);
       }
     });
 
@@ -141,7 +139,7 @@
 
     function loadMediaFromInput() {
       const raw = document.getElementById('streamUrl').value.trim();
-      loadMediaUrl(raw);
+      playRawStream(raw);
     }
 
     function loadLocalFile(file) {
@@ -153,50 +151,8 @@
       video.play().catch(err => console.log("Playback error:", err));
     }
 
-    async function extractAndPlayEinthusan(pageUrl) {
-      placeholder.classList.remove('hidden');
-      video.classList.add('hidden');
-      statusText.innerText = "Extracting raw stream from Einthusan...";
-
-      try {
-        // Direct fetch enabled by CORS extension
-        const res = await fetch(pageUrl, {
-          headers: {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-          }
-        });
-        
-        if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
-        const htmlText = await res.text();
-
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlText, 'text/html');
-
-        // Locate data-ej3qk attribute and decryption key
-        const playerElem = doc.querySelector('[data-ej3qk]');
-        const argInput = doc.querySelector('#arg');
-
-        if (!playerElem || !argInput) {
-          throw new Error("Could not locate player data attributes on page.");
-        }
-
-        const encryptedData = playerElem.getAttribute('data-ej3qk');
-        const decryptCode = JSON.parse(argInput.value);
-
-        // Decrypt the cdn.einthusan.io link
-        const rawStreamPath = decryptEinthusanUrl(encryptedData, decryptCode.key);
-        const fullStreamUrl = rawStreamPath.startsWith('http') ? rawStreamPath : `https:${rawStreamPath}`;
-
-        statusText.innerText = "Stream decrypted! Starting playback...";
-        playRawStream(fullStreamUrl);
-
-      } catch (err) {
-        console.error("Extraction error:", err);
-        statusText.innerText = "Extraction failed. Ensure CORS Unblock extension is ACTIVE for this domain.";
-      }
-    }
-
     function playRawStream(url) {
+      if (!url) return;
       placeholder.classList.add('hidden');
       video.classList.remove('hidden');
 
@@ -216,17 +172,6 @@
         video.src = url;
         video.play().catch(err => console.log("Play interrupted:", err));
       }
-    }
-
-    function loadMediaUrl(url) {
-      if (!url) return;
-
-      if (url.includes('einthusan.tv/movie/watch/')) {
-        extractAndPlayEinthusan(url);
-        return;
-      }
-
-      playRawStream(url);
     }
   </script>
 </body>
