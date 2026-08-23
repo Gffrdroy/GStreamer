@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Strips the github.io origin header so CDN requests aren't blocked -->
+  <meta name="referrer" content="no-referrer">
   <title>GStreamer</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -10,30 +12,26 @@
   <style>
     body { background-color: #000000; color: #e3e2e6; user-select: none; }
     
-    /* Material 3 Expressive Design System */
+    /* Material 3 Expressive System */
     .m3-surface {
-      background: rgba(30, 30, 32, 0.75);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      background: rgba(28, 27, 31, 0.75);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
       border: 1px solid rgba(255, 255, 255, 0.12);
     }
-    .m3-pill {
-      border-radius: 9999px;
+    .m3-pill { border-radius: 9999px; }
+    .m3-tonal {
+      background-color: rgba(208, 188, 255, 0.15);
+      color: #d0bcff;
     }
-    .m3-container-tonal {
-      background-color: rgba(79, 216, 235, 0.15);
-      color: #a6edff;
-    }
-    .m3-btn-expressive {
+    .m3-btn {
       transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
     }
-    .m3-btn-expressive:hover {
-      transform: scale(1.06);
+    .m3-btn:hover {
+      transform: scale(1.05);
       background-color: rgba(255, 255, 255, 0.15);
     }
-    .m3-btn-expressive:active {
-      transform: scale(0.92);
-    }
+    .m3-btn:active { transform: scale(0.92); }
     
     video::-webkit-media-controls { display: flex !important; }
   </style>
@@ -60,7 +58,7 @@
       <div class="flex gap-2">
         <input type="text" id="searchQuery" placeholder="Search movies..." onkeydown="if(event.key==='Enter') executeSearch()"
           class="w-full px-5 py-3 m3-pill bg-black/50 border border-white/10 text-xs text-neutral-100 focus:outline-none focus:border-emerald-400">
-        <button onclick="executeSearch()" class="px-6 py-3 bg-emerald-400 hover:bg-emerald-300 text-black font-bold text-xs m3-pill flex items-center gap-2 m3-btn-expressive">
+        <button onclick="executeSearch()" class="px-6 py-3 bg-emerald-400 hover:bg-emerald-300 text-black font-bold text-xs m3-pill flex items-center gap-2 m3-btn">
           <i class="fa-solid fa-magnifying-glass"></i>
           <span>Search</span>
         </button>
@@ -94,7 +92,7 @@
       <input type="text" id="streamUrl" placeholder="Paste direct .m3u8 or .mp4 link here..." 
         class="w-full px-5 py-3 rounded-[24px] bg-neutral-900/60 border border-white/10 text-xs font-mono text-neutral-100 focus:outline-none focus:border-emerald-400">
       
-      <button onclick="loadMediaFromInput()" class="px-6 py-3 bg-emerald-400 hover:bg-emerald-300 text-black font-bold text-xs m3-pill whitespace-nowrap m3-btn-expressive">
+      <button onclick="loadMediaFromInput()" class="px-6 py-3 bg-emerald-400 hover:bg-emerald-300 text-black font-bold text-xs m3-pill whitespace-nowrap m3-btn">
         Play Stream
       </button>
     </div>
@@ -109,23 +107,23 @@
         <p class="text-sm font-semibold text-neutral-200">Paste Media Link Above to Play</p>
       </div>
 
-      <!-- Native Player with Native Controls enabled -->
+      <!-- Native Player -->
       <video id="videoElement" class="w-full h-full hidden bg-black object-contain" controls autoplay></video>
 
       <!-- Floating Android Expressive 30-Second Controller Pad -->
       <div id="expressiveController" class="absolute bottom-6 m3-surface m3-pill px-6 py-2.5 flex items-center space-x-4 hidden z-20 shadow-2xl">
-        <button onclick="skipTime(-30)" title="Rewind 30s" class="w-10 h-10 m3-pill m3-container-tonal flex items-center justify-center m3-btn-expressive">
+        <button onclick="skipTime(-30)" title="Rewind 30s" class="w-11 h-11 m3-pill m3-tonal flex items-center justify-center m3-btn">
           <div class="relative flex items-center justify-center">
             <i class="fa-solid fa-rotate-left text-xs"></i>
-            <span class="text-[8px] font-bold ml-1">30</span>
+            <span class="text-[9px] font-bold ml-1">30</span>
           </div>
         </button>
 
         <span class="text-[11px] font-semibold text-neutral-300 px-2 border-x border-white/10">30s Skip Pad</span>
 
-        <button onclick="skipTime(30)" title="Forward 30s" class="w-10 h-10 m3-pill m3-container-tonal flex items-center justify-center m3-btn-expressive">
+        <button onclick="skipTime(30)" title="Forward 30s" class="w-11 h-11 m3-pill m3-tonal flex items-center justify-center m3-btn">
           <div class="relative flex items-center justify-center">
-            <span class="text-[8px] font-bold mr-1">30</span>
+            <span class="text-[9px] font-bold mr-1">30</span>
             <i class="fa-solid fa-rotate-right text-xs"></i>
           </div>
         </button>
@@ -195,7 +193,13 @@
 
       if (rawUrl.includes('.m3u8')) {
         if (Hls.isSupported()) {
-          hls = new Hls();
+          hls = new Hls({
+            // Force hls.js to omit origin headers on segment fetches
+            fetchSetup: function(context, request) {
+              request.headers = request.headers || {};
+              return request;
+            }
+          });
           hls.loadSource(rawUrl);
           hls.attachMedia(video);
           hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
