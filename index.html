@@ -9,15 +9,41 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     body { background-color: #0d0d0d; color: #e5e5e5; user-select: none; }
-    video::-webkit-media-controls { display: flex !important; }
+    
+    /* Hide native controls permanently */
+    video::-webkit-media-controls { display: none !important; }
+    video::-webkit-media-controls-enclosure { display: none !important; }
+    
+    /* Material 3 Expressive Glassmorphism */
+    .m3-glass {
+      background: rgba(24, 24, 27, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .m3-btn {
+      transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+    }
+    .m3-btn:hover {
+      background-color: rgba(255, 255, 255, 0.12);
+      transform: scale(1.05);
+    }
+    .m3-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* Range Slider Styling */
+    input[type=range] {
+      accent-color: #22c55e;
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col font-sans bg-black text-neutral-200">
 
   <!-- Header -->
-  <header class="border-b border-neutral-800 bg-neutral-900 px-6 py-3.5 flex items-center justify-between">
+  <header class="border-b border-neutral-800 bg-neutral-900/80 backdrop-blur-md px-6 py-3.5 flex items-center justify-between">
     <div class="flex items-center space-x-3">
-      <div class="w-9 h-9 rounded-lg bg-green-500 text-black flex items-center justify-center font-bold">
+      <div class="w-9 h-9 rounded-2xl bg-green-500 text-black flex items-center justify-center font-bold shadow-lg shadow-green-500/20">
         <i class="fa-solid fa-play text-sm"></i>
       </div>
       <div>
@@ -30,33 +56,33 @@
   <main class="flex-grow max-w-6xl w-full mx-auto p-4 sm:p-6 flex flex-col space-y-4">
 
     <!-- Search Controls -->
-    <div class="bg-neutral-900 p-3.5 rounded-2xl border border-neutral-800 space-y-3">
+    <div class="m3-glass p-3.5 rounded-3xl space-y-3">
       <div class="flex gap-2">
         <input type="text" id="searchQuery" placeholder="Search movies..." onkeydown="if(event.key==='Enter') executeSearch()"
-          class="w-full px-4 py-2.5 rounded-xl bg-black border border-neutral-800 text-xs text-neutral-100 focus:outline-none focus:border-green-500">
-        <button onclick="executeSearch()" class="px-6 py-2.5 bg-green-500 hover:bg-green-400 text-black font-bold text-xs rounded-xl flex items-center gap-2">
+          class="w-full px-4 py-2.5 rounded-2xl bg-black/40 border border-white/10 text-xs text-neutral-100 focus:outline-none focus:border-green-500">
+        <button onclick="executeSearch()" class="px-6 py-2.5 bg-green-500 hover:bg-green-400 text-black font-bold text-xs rounded-2xl flex items-center gap-2 m3-btn">
           <i class="fa-solid fa-magnifying-glass"></i>
           <span>Search</span>
         </button>
       </div>
 
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-        <select id="searchLang" class="bg-black border border-neutral-800 rounded-lg px-2.5 py-1.5 text-neutral-300">
+        <select id="searchLang" class="bg-black/40 border border-white/10 rounded-xl px-2.5 py-1.5 text-neutral-300">
           <option value="tamil" selected>Tamil</option>
           <option value="hindi">Hindi</option>
           <option value="telugu">Telugu</option>
           <option value="malayalam">Malayalam</option>
           <option value="kannada">Kannada</option>
         </select>
-        <select id="searchCategory" class="bg-black border border-neutral-800 rounded-lg px-2.5 py-1.5 text-neutral-300">
+        <select id="searchCategory" class="bg-black/40 border border-white/10 rounded-xl px-2.5 py-1.5 text-neutral-300">
           <option value="movie" selected>Movies</option>
           <option value="music">Music</option>
         </select>
-        <select id="searchSort" class="bg-black border border-neutral-800 rounded-lg px-2.5 py-1.5 text-neutral-300">
+        <select id="searchSort" class="bg-black/40 border border-white/10 rounded-xl px-2.5 py-1.5 text-neutral-300">
           <option value="relevance" selected>Relevance</option>
           <option value="recent">Recently Added</option>
         </select>
-        <label class="flex items-center gap-2 bg-black border border-neutral-800 rounded-lg px-3 py-1.5 cursor-pointer">
+        <label class="flex items-center gap-2 bg-black/40 border border-white/10 rounded-xl px-3 py-1.5 cursor-pointer">
           <input type="checkbox" id="searchSubtitles" class="accent-green-500">
           <span class="text-neutral-300 text-[11px]">Subtitles Only</span>
         </label>
@@ -66,29 +92,93 @@
     <!-- URL Input Area -->
     <div class="flex flex-col sm:flex-row gap-2">
       <input type="text" id="streamUrl" placeholder="Paste direct .m3u8 or .mp4 link here..." 
-        class="w-full px-4 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-xs font-mono text-neutral-100 focus:outline-none focus:border-green-500">
+        class="w-full px-4 py-3 rounded-2xl bg-neutral-900/60 border border-white/10 text-xs font-mono text-neutral-100 focus:outline-none focus:border-green-500">
       
-      <button onclick="loadMediaFromInput()" class="px-5 py-3 bg-green-500 hover:bg-green-400 text-black font-bold text-xs rounded-xl whitespace-nowrap">
+      <button onclick="loadMediaFromInput()" class="px-5 py-3 bg-green-500 hover:bg-green-400 text-black font-bold text-xs rounded-2xl whitespace-nowrap m3-btn">
         Play Stream
       </button>
     </div>
 
-    <!-- Video Stage -->
-    <div id="dropZone" class="video-container relative w-full aspect-video bg-neutral-950 rounded-2xl border border-neutral-800 flex items-center justify-center overflow-hidden">
+    <!-- Video Stage Container -->
+    <div id="videoContainer" class="group relative w-full aspect-video bg-neutral-950 rounded-3xl border border-white/10 flex items-center justify-center overflow-hidden">
+      
       <div id="placeholder" class="text-center p-8 space-y-3">
-        <div id="statusIcon" class="w-16 h-16 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center mx-auto text-green-400">
+        <div class="w-16 h-16 rounded-3xl m3-glass flex items-center justify-center mx-auto text-green-400">
           <i class="fa-solid fa-film text-2xl"></i>
         </div>
-        <p id="statusText" class="text-sm font-semibold text-neutral-200">Paste Media Link Above to Play</p>
+        <p class="text-sm font-semibold text-neutral-200">Paste Media Link Above to Play</p>
       </div>
 
-      <video id="videoElement" class="w-full h-full hidden bg-black object-contain" controls autoplay></video>
+      <!-- Raw Video Tag -->
+      <video id="videoElement" class="w-full h-full hidden bg-black object-contain"></video>
+
+      <!-- Custom Material 3 Playback Controls Overlay -->
+      <div id="customControls" class="absolute inset-0 flex flex-col justify-between p-4 bg-gradient-to-t from-black/80 via-transparent to-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden">
+        
+        <!-- Top Title Bar -->
+        <div class="flex justify-between items-center">
+          <span id="mediaTitle" class="text-xs font-medium text-neutral-300 bg-black/40 px-3 py-1 rounded-full border border-white/10 backdrop-blur-md">GStreamer Player</span>
+        </div>
+
+        <!-- Center Controls: Skip -30s, Play/Pause, Skip +30s -->
+        <div class="flex items-center justify-center space-x-6">
+          <button onclick="skipTime(-30)" title="Rewind 30s" class="w-12 h-12 rounded-full m3-glass flex items-center justify-center text-white m3-btn">
+            <div class="relative flex items-center justify-center">
+              <i class="fa-solid fa-rotate-left text-base"></i>
+              <span class="absolute text-[9px] font-bold top-[3px]">30</span>
+            </div>
+          </button>
+
+          <button onclick="togglePlay()" id="playBtn" title="Play/Pause" class="w-16 h-16 rounded-full bg-green-500 text-black flex items-center justify-center m3-btn shadow-lg shadow-green-500/20">
+            <i id="playIcon" class="fa-solid fa-play text-xl"></i>
+          </button>
+
+          <button onclick="skipTime(30)" title="Forward 30s" class="w-12 h-12 rounded-full m3-glass flex items-center justify-center text-white m3-btn">
+            <div class="relative flex items-center justify-center">
+              <i class="fa-solid fa-rotate-right text-base"></i>
+              <span class="absolute text-[9px] font-bold top-[3px]">30</span>
+            </div>
+          </button>
+        </div>
+
+        <!-- Bottom Timeline & Toolbar -->
+        <div class="m3-glass p-3 rounded-2xl space-y-2">
+          <!-- Seek Bar -->
+          <div class="flex items-center space-x-3">
+            <span id="currentTime" class="text-[11px] font-mono text-neutral-300 min-w-[40px]">0:00</span>
+            <input type="range" id="seekBar" value="0" step="0.1" class="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer">
+            <span id="duration" class="text-[11px] font-mono text-neutral-400 min-w-[40px]">0:00</span>
+          </div>
+
+          <!-- Extra Tools -->
+          <div class="flex justify-between items-center text-xs text-neutral-300 pt-1">
+            <div class="flex items-center space-x-3">
+              <button onclick="toggleMute()" id="muteBtn" class="hover:text-green-400">
+                <i id="muteIcon" class="fa-solid fa-volume-high"></i>
+              </button>
+              <input type="range" id="volumeBar" min="0" max="1" step="0.05" value="1" class="w-16 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <button onclick="toggleFullscreen()" class="hover:text-green-400">
+              <i class="fa-solid fa-expand"></i>
+            </button>
+          </div>
+        </div>
+
+      </div>
     </div>
   </main>
 
   <script>
     const video = document.getElementById('videoElement');
     const placeholder = document.getElementById('placeholder');
+    const customControls = document.getElementById('customControls');
+    const playIcon = document.getElementById('playIcon');
+    const seekBar = document.getElementById('seekBar');
+    const volumeBar = document.getElementById('volumeBar');
+    const currentTimeText = document.getElementById('currentTime');
+    const durationText = document.getElementById('duration');
+    const muteIcon = document.getElementById('muteIcon');
     let hls = null;
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -97,6 +187,22 @@
       if (sharedUrl) {
         document.getElementById('streamUrl').value = sharedUrl;
         playRawStream(sharedUrl);
+      }
+    });
+
+    // Custom Keyboard Controls (Arrow Keys = 30 seconds skip)
+    document.addEventListener('keydown', (e) => {
+      if (document.activeElement.tagName === 'INPUT') return;
+
+      if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        skipTime(30);
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        skipTime(-30);
+      } else if (e.code === 'Space') {
+        e.preventDefault();
+        togglePlay();
       }
     });
 
@@ -124,13 +230,13 @@
       if (!rawUrl) return;
       placeholder.classList.add('hidden');
       video.classList.remove('hidden');
+      customControls.classList.remove('hidden');
 
       if (hls) {
         hls.destroy();
         hls = null;
       }
 
-      // Handle HLS stream links (.m3u8)
       if (rawUrl.includes('.m3u8')) {
         if (Hls.isSupported()) {
           hls = new Hls();
@@ -142,10 +248,72 @@
           video.play();
         }
       } else {
-        // Fallback for standard video links (.mp4, etc.)
         video.src = rawUrl;
         video.play().catch(err => console.log("Playback error:", err));
       }
+    }
+
+    // Play / Pause Toggle
+    function togglePlay() {
+      if (video.paused) {
+        video.play();
+        playIcon.className = 'fa-solid fa-pause text-xl';
+      } else {
+        video.pause();
+        playIcon.className = 'fa-solid fa-play text-xl';
+      }
+    }
+
+    // Exact 30-second Skip Function
+    function skipTime(seconds) {
+      video.currentTime = Math.min(Math.max(video.currentTime + seconds, 0), video.duration || 0);
+    }
+
+    // Timeline Updates
+    video.addEventListener('timeupdate', () => {
+      if (!isNaN(video.duration)) {
+        seekBar.value = (video.currentTime / video.duration) * 100;
+        currentTimeText.textContent = formatTime(video.currentTime);
+        durationText.textContent = formatTime(video.duration);
+      }
+    });
+
+    seekBar.addEventListener('input', () => {
+      video.currentTime = (seekBar.value / 100) * video.duration;
+    });
+
+    volumeBar.addEventListener('input', () => {
+      video.volume = volumeBar.value;
+      video.muted = volumeBar.value === "0";
+      updateVolumeIcon();
+    });
+
+    function toggleMute() {
+      video.muted = !video.muted;
+      updateVolumeIcon();
+    }
+
+    function updateVolumeIcon() {
+      if (video.muted || video.volume === 0) {
+        muteIcon.className = 'fa-solid fa-volume-xmark';
+      } else {
+        muteIcon.className = 'fa-solid fa-volume-high';
+      }
+    }
+
+    function toggleFullscreen() {
+      const container = document.getElementById('videoContainer');
+      if (!document.fullscreenElement) {
+        container.requestFullscreen().catch(err => console.log(err));
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     }
   </script>
 </body>
